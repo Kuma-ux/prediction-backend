@@ -127,14 +127,15 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
-
-    // ✅ SET HTTP ONLY COOKIE (THIS IS THE FIX)
+    
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
+    console.log("Cookie attached.");
 
     return res.json({
       success: true,
