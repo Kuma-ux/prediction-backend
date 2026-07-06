@@ -51,12 +51,24 @@ const upload = multer({
 //
 // 🔐 SECURITY: CORS
 //
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://prediction-frontend.vercel.app",
+  "https://prediction-frontend-phi.vercel.app",
+];
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://prediction-frontend-9r8v878sf-threads-18b5fe9d.vercel.app",
-    ],
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.log("Blocked origin:", origin);
+
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
