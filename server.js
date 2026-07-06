@@ -52,7 +52,10 @@ const upload = multer({
 //
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: [
+      "http://localhost:3000",
+      "https://prediction-frontend-phi.vercel.app",
+    ],
     credentials: true,
   })
 );
