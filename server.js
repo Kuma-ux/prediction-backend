@@ -23,6 +23,7 @@ require("dotenv").config();
 const authRoutes = require("./routes/auth");
 
 const app = express();
+app.set("trust proxy", 1);
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -128,7 +129,10 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: [
+      "http://localhost:3000",
+      "https://prediction-frontend-phi.vercel.app",
+    ],
     credentials: true,
   },
 });
