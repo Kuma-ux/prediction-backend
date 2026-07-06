@@ -143,7 +143,7 @@ const io = new Server(server, {
   cors: {
     origin: [
       "http://localhost:3000",
-      "https://prediction-frontend-9r8v878sf-threads-18b5fe9d.vercel.app",
+      "https://prediction-frontend-phi.vercel.app",
     ],
     credentials: true,
   },
