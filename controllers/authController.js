@@ -110,7 +110,7 @@ exports.login = async (req, res) => {
       protocol: req.protocol,
       secure: req.secure,
       forwarded: req.headers["x-forwarded-proto"],
-    )};
+    });
   
     const { email, password } = req.body;
 
