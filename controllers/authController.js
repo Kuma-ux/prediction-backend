@@ -102,6 +102,9 @@ exports.register = async (req, res) => {
 // LOGIN
 exports.login = async (req, res) => {
   try {
+    console.log("LOGIN REQUEST");
+    console.log("Origin:", req.headers.origin);
+    console.log("Host:", req.headers.host);
     const { email, password } = req.body;
 
     const user = await pool.query(
@@ -136,6 +139,8 @@ exports.login = async (req, res) => {
     });
 
     console.log("Cookie attached.");
+    console.log("Set-Cookie header:");
+    console.log(res.getHeader("Set-Cookie"));
 
     return res.json({
       success: true,
