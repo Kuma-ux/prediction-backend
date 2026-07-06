@@ -105,6 +105,13 @@ exports.login = async (req, res) => {
     console.log("LOGIN REQUEST");
     console.log("Origin:", req.headers.origin);
     console.log("Host:", req.headers.host);
+
+    console.log({
+      protocol: req.protocol,
+      secure: req.secure,
+      forwarded: req.headers["x-forwarded-proto"],
+    )};
+  
     const { email, password } = req.body;
 
     const user = await pool.query(
