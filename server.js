@@ -55,7 +55,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://prediction-frontend-phi.vercel.app",
+      "https://prediction-frontend-9r8v878sf-threads-18b5fe9d.vercel.app",
     ],
     credentials: true,
   })
@@ -131,7 +131,7 @@ const io = new Server(server, {
   cors: {
     origin: [
       "http://localhost:3000",
-      "https://prediction-frontend-phi.vercel.app",
+      "https://prediction-frontend-9r8v878sf-threads-18b5fe9d.vercel.app",
     ],
     credentials: true,
   },
