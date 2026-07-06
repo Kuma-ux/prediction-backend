@@ -228,7 +228,7 @@ exports.forgotPassword = async (req, res) => {
       });
 
     const link =
-      `http://localhost:3000/reset-password?token=${token}`;
+      `https://prediction-frontend-phi.vercel.app/reset-password?token=${token}`;
 
     await transporter.sendMail({
 
