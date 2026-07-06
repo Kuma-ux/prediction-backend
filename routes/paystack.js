@@ -53,6 +53,9 @@ router.post("/initialize", authMiddleware, async (req, res) => {
   }
 });
 router.post("/webhook", async (req, res) => {
+  console.log("========== WEBHOOK HIT ==========");
+  console.log(req.body);
+  
   try {
 
     const hash = crypto
