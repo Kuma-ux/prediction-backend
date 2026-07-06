@@ -23,7 +23,7 @@ router.post("/initialize", authMiddleware, async (req, res) => {
       {
         email,
         amount: amount * 100,
-        callback_url: "http://localhost:3000/payment-success",
+        callback_url: "https://prediction-frontend-phi.vercel.app/payment-success",
       },
       {
         headers: {
