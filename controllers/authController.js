@@ -149,16 +149,25 @@ exports.login = async (req, res) => {
 };
 exports.me = async (req, res) => {
   try {
+    console.log("=================================");
+    console.log("REQUEST:", req.method, req.originalUrl);
+    console.log("Host:", req.headers.host);
+    console.log("Origin:", req.headers.origin);
+    console.log("Referer:", req.headers.referer);
+    console.log("User-Agent:", req.headers["user-agent"]);
+    console.log("Raw Cookie Header:", req.headers.cookie);
+    console.log("Parsed Cookies:", req.cookies);
+    
     const token = req.cookies.token;
-    console.log("Cookies:", req.cookies);
-    console.log("Token:", req.cookies.token);
 
     if (!token) {
+      console.log("❌ No authentication cookie received");
       return res.json({ success: false, message: "Not authenticated" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log("Decoded:", decoded);
+    console.log("=================================");
 
     const user = await pool.query(
       "SELECT id, email, username, role FROM users WHERE id = $1",
