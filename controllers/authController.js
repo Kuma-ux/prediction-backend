@@ -150,12 +150,15 @@ exports.login = async (req, res) => {
 exports.me = async (req, res) => {
   try {
     const token = req.cookies.token;
+    console.log("Cookies:", req.cookies);
+    console.log("Token:", req.cookies.token);
 
     if (!token) {
       return res.json({ success: false, message: "Not authenticated" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Decoded:", decoded);
 
     const user = await pool.query(
       "SELECT id, email, username, role FROM users WHERE id = $1",
