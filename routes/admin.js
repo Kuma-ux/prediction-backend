@@ -6,6 +6,10 @@ const pool = require("../db");
 const adminMiddleware = require("../middleware/adminMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 // routes/admin.js
 router.post(
   "/create-market",
@@ -1250,6 +1254,129 @@ router.post(
     } finally {
       client.release();
     }
+  }
+);
+
+router.get(
+  "/search-users",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+
+      const q = req.query.q?.trim();
+
+      if (!q) {
+        return res.json({
+          success: true,
+          users: []
+        });
+      }
+
+      const result = await pool.query(
+        `
+        SELECT
+          id,
+          username,
+          email
+        FROM users
+        WHERE
+          username ILIKE $1
+          OR email ILIKE $1
+        LIMIT 10
+        `,
+        [`%${q}%`]
+      );
+
+      res.json({
+        success: true,
+        users: result.rows
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        success:false,
+        error:err.message
+      });
+
+    }
+  }
+);
+router.post(
+  "/send-email",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+
+    try {
+
+      const {
+        userId,
+        subject,
+        message
+      } = req.body;
+
+      if (!userId || !subject || !message) {
+        return res.status(400).json({
+          success:false,
+          error:"Missing fields"
+        });
+      }
+
+      const userRes = await pool.query(
+        `
+        SELECT
+          username,
+          email
+        FROM users
+        WHERE id = $1
+        `,
+        [userId]
+      );
+
+      if (!userRes.rows.length) {
+        return res.status(404).json({
+          success:false,
+          error:"User not found"
+        });
+      }
+
+      const user = userRes.rows[0];
+
+      await resend.emails.send({
+
+        from:
+          "Probability Support <support@theprobability.site>",
+
+        to: user.email,
+
+        subject,
+
+        text: message,
+
+        replyTo:
+          "support@theprobability.site"
+
+      });
+
+      res.json({
+        success:true
+      });
+
+    } catch(err){
+
+      console.error(err);
+
+      res.status(500).json({
+        success:false,
+        error:err.message
+      });
+
+    }
+
   }
 );
 module.exports = router;
