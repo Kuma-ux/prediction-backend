@@ -8,33 +8,6 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const { htmlToText } = require("html-to-text");
 
-const hasHtml = /<[^>]+>/.test(html);
-
-let email;
-
-if (hasHtml) {
-  email = {
-    from: "Probability Support <support@theprobability.site>",
-    to: user.email,
-    subject,
-    html,
-    text: htmlToText(html),
-    replyTo: "support@theprobability.site"
-  };
-} else {
-  email = {
-    from: "Probability Support <support@theprobability.site>",
-    to: user.email,
-    subject,
-    text: message,
-    // Also send as HTML so line breaks are preserved
-    html: `<div style="white-space:pre-wrap">${message}</div>`,
-    replyTo: "support@theprobability.site"
-  };
-}
-
-await resend.emails.send(email);
-
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -1343,8 +1316,8 @@ router.post(
       const {
         userId,
         subject,
-        message,
-        html
+        message = "",
+        html = ""
       } = req.body;
 
       if (!userId || !subject) {
@@ -1356,9 +1329,7 @@ router.post(
 
       const userRes = await pool.query(
         `
-        SELECT
-          username,
-          email
+        SELECT username, email
         FROM users
         WHERE id = $1
         `,
@@ -1374,28 +1345,31 @@ router.post(
 
       const user = userRes.rows[0];
 
-      // If HTML exists, generate a plain-text version automatically.
-      // Otherwise use the message directly.
-      const text =
-        html
-          ? htmlToText(html, {
-              wordwrap: 130,
-              selectors: [
-                { selector: "img", format: "skip" }
-              ]
-            })
-          : message;
+      const hasHtml = html && /<[^>]+>/.test(html);
 
-      await resend.emails.send({
-        from: "Probability Support <support@theprobability.site>",
-        to: user.email,
-        subject,
+      let email;
 
-        html: html || undefined,
-        text,
+      if (hasHtml) {
+        email = {
+          from: "Probability Support <support@theprobability.site>",
+          to: user.email,
+          subject,
+          html,
+          text: htmlToText(html),
+          replyTo: "support@theprobability.site"
+        };
+      } else {
+        email = {
+          from: "Probability Support <support@theprobability.site>",
+          to: user.email,
+          subject,
+          text: message,
+          html: `<div style="white-space:pre-wrap">${message}</div>`,
+          replyTo: "support@theprobability.site"
+        };
+      }
 
-        replyTo: "support@theprobability.site"
-      });
+      await resend.emails.send(email);
 
       res.json({
         success: true
