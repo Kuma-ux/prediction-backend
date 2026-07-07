@@ -53,8 +53,6 @@ const upload = multer({
 //
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://prediction-frontend.vercel.app",
-  "https://prediction-frontend-phi.vercel.app",
   "https://www.theprobability.site",
 ];
 app.use(
@@ -144,7 +142,6 @@ const io = new Server(server, {
   cors: {
     origin: [
       "http://localhost:3000",
-      "https://prediction-frontend-phi.vercel.app",
       "https://www.theprobability.site",
     ],
     credentials: true,
