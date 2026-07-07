@@ -199,8 +199,10 @@ exports.me = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
-const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 exports.forgotPassword = async (req, res) => {
 
@@ -243,38 +245,74 @@ exports.forgotPassword = async (req, res) => {
       ]
     );
 
-    const transporter =
-      nodemailer.createTransport({
-        service:"gmail",
-        auth:{
-          user:process.env.EMAIL_USER,
-          pass:process.env.EMAIL_PASS
-        }
-      });
-
     const link =
       `https://prediction-frontend-phi.vercel.app/reset-password?token=${token}`;
 
-    await transporter.sendMail({
+    await resend.emails.send({
+      from: "Probability Support <support@theprobability.site>",
+      to: email,
+      subject: "Reset your password",
 
-      from: `"Probability Support" <${process.env.EMAIL_USER}>`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:30px">
 
-      to:email,
+          <h2>Password Reset</h2>
 
-      subject:"Reset your password",
+            <p>You requested a password reset for your Probability account.</p>
+            <p>
+              Click the button below to choose a new password.
+            </p>
 
-      html:`
-      <h2>Password Reset</h2>
+            <p style="margin:30px 0;">
+              <a
+                href="${link}"
+                style="
+                  background:#2563eb;
+                  color:#fff;
+                  padding:12px 24px;
+                  border-radius:8px;
+                  text-decoration:none;
+                  display:inline-block;
+                  font-weight:bold;
+                "
+              >
+                Reset Password
+              </a>
+            </p>
 
-      <p>You requested a password reset.</p>
+            <p>
+              Or copy this link into your browser:
+            </p>
 
-      <a href="${link}">
-      Reset Password
-      </a>
+            <p>
+              ${link}
+            </p>
 
-      <p>This link expires in 30 minutes.</p>
-      `
+            <hr>
 
+            <p style="color:#666;font-size:14px">
+              This link expires in 30 minutes.
+            </p>
+
+            <p style="color:#666;font-size:14px">
+              If you didn't request this, you can safely ignore this email.
+            </p>
+
+          </div>
+        `,
+        text: `
+      Reset your password
+
+      Open the following link:
+
+      ${link}
+
+      This link expires in 30 minutes.
+
+      If you didn't request this reset, simply ignore this email.
+        `,
+
+        replyTo: "support@theprobability.site"
     });
 
     res.json({
