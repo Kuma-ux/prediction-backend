@@ -1316,7 +1316,8 @@ router.post(
       const {
         userId,
         subject,
-        message
+        message,
+        html
       } = req.body;
 
       if (!userId || !subject || !message) {
@@ -1354,6 +1355,8 @@ router.post(
         to: user.email,
 
         subject,
+
+        html: html || undefined,
 
         text: message,
 
