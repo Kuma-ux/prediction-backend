@@ -6,6 +6,8 @@ const pool = require("../db");
 const adminMiddleware = require("../middleware/adminMiddleware");
 const authMiddleware = require("../middleware/authMiddleware");
 
+const { htmlToText } = require("html-to-text");
+
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -1310,9 +1312,7 @@ router.post(
   authMiddleware,
   adminMiddleware,
   async (req, res) => {
-
     try {
-
       const {
         userId,
         subject,
@@ -1320,10 +1320,10 @@ router.post(
         html
       } = req.body;
 
-      if (!userId || !subject || !message) {
+      if (!userId || !subject) {
         return res.status(400).json({
-          success:false,
-          error:"Missing fields"
+          success: false,
+          error: "Missing fields"
         });
       }
 
@@ -1340,46 +1340,48 @@ router.post(
 
       if (!userRes.rows.length) {
         return res.status(404).json({
-          success:false,
-          error:"User not found"
+          success: false,
+          error: "User not found"
         });
       }
 
       const user = userRes.rows[0];
 
+      // If HTML exists, generate a plain-text version automatically.
+      // Otherwise use the message directly.
+      const text =
+        html
+          ? htmlToText(html, {
+              wordwrap: 130,
+              selectors: [
+                { selector: "img", format: "skip" }
+              ]
+            })
+          : message;
+
       await resend.emails.send({
-
-        from:
-          "Probability Support <support@theprobability.site>",
-
+        from: "Probability Support <support@theprobability.site>",
         to: user.email,
-
         subject,
 
         html: html || undefined,
+        text,
 
-        text: message,
-
-        replyTo:
-          "support@theprobability.site"
-
+        replyTo: "support@theprobability.site"
       });
 
       res.json({
-        success:true
+        success: true
       });
 
-    } catch(err){
-
+    } catch (err) {
       console.error(err);
 
       res.status(500).json({
-        success:false,
-        error:err.message
+        success: false,
+        error: err.message
       });
-
     }
-
   }
 );
 module.exports = router;
