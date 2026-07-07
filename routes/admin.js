@@ -8,6 +8,33 @@ const authMiddleware = require("../middleware/authMiddleware");
 
 const { htmlToText } = require("html-to-text");
 
+const hasHtml = /<[^>]+>/.test(html);
+
+let email;
+
+if (hasHtml) {
+  email = {
+    from: "Probability Support <support@theprobability.site>",
+    to: user.email,
+    subject,
+    html,
+    text: htmlToText(html),
+    replyTo: "support@theprobability.site"
+  };
+} else {
+  email = {
+    from: "Probability Support <support@theprobability.site>",
+    to: user.email,
+    subject,
+    text: message,
+    // Also send as HTML so line breaks are preserved
+    html: `<div style="white-space:pre-wrap">${message}</div>`,
+    replyTo: "support@theprobability.site"
+  };
+}
+
+await resend.emails.send(email);
+
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
