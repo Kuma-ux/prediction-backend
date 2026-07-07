@@ -24,7 +24,7 @@ router.post("/contact", authMiddleware, async (req, res) => {
 
       to: "mollyjane797@gmail.com",
 
-      replyTo: "mollyjane797@gmail.com",
+      replyTo: "support@theprobability.site",
 
       subject: `[Help Center] ${subject}`,
 
