@@ -1,77 +1,57 @@
-// routes/support.js
-
 const express = require("express");
 const router = express.Router();
 
-const authMiddleware =
-  require("../middleware/authMiddleware");
+const authMiddleware = require("../middleware/authMiddleware");
 
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-router.post(
-  "/contact",
-  authMiddleware,
-  async (req, res) => {
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-    try {
+router.post("/contact", authMiddleware, async (req, res) => {
+  try {
 
-      const { subject, message } = req.body;
+    const { subject, message } = req.body;
 
-      if (!subject || !message) {
-        return res.status(400).json({
-          success: false,
-          error: "Missing fields",
-        });
-      }
+    if (!subject || !message) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing fields",
+      });
+    }
 
-      console.log("EMAIL_USER:", process.env.EMAIL_USER);
-      console.log("EMAIL_PASS:", process.env.EMAIL_PASS);
+    await resend.emails.send({
+      from: "Probability Support <support@theprobability.site>",
 
-      const transporter =
-        nodemailer.createTransport({
-          host: "smtp.gmail.com",
-          port: 465,
-          secure: true,
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        });
+      to: "mollyjane797@gmail.com",
 
-      await transporter.verify();
-      console.log("SMTP connected");
+      replyTo: "mollyjane797@gmail.com",
 
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+      subject: `[Help Center] ${subject}`,
 
-        to: "mollyjane797@gmail.com",
-
-        subject: `[Help Center] ${subject}`,
-
-        text: `
+      text: `
 User ID: ${req.user.userId}
 Username: ${req.user.username}
 
 Message:
 
 ${message}
-        `,
-      });
+      `,
+    });
 
-      return res.json({
-        success: true,
-      });
+    return res.json({
+      success: true,
+    });
 
-    } catch (err) {
+  } catch (err) {
 
-      console.error(err);
+    console.error(err);
 
-      return res.status(500).json({
-        success: false,
-        error: "Failed to send email",
-      });
-    }
+    return res.status(500).json({
+      success: false,
+      error: "Failed to send email",
+    });
+
   }
-);
+});
 
 module.exports = router;
