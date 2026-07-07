@@ -31,6 +31,7 @@ router.post("/contact", authMiddleware, async (req, res) => {
       text: `
 User ID: ${req.user.userId}
 Username: ${req.user.username}
+Email: ${req.user.email}
 
 Message:
 
