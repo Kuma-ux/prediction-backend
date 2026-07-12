@@ -17,6 +17,8 @@ const userRoutes = require("./routes/users");
 const creatorRoutes = require("./routes/creator");
 const supportRoutes = require("./routes/support");
 const multer = require("multer");
+const newsletterRoutes =
+require("./routes/newsletter");
 
 require("dotenv").config();
 
@@ -128,6 +130,10 @@ app.use("/profile", profileRoutes);
 app.use("/users", userRoutes);
 app.use("/creator", creatorRoutes);
 app.use("/support", supportRoutes);
+app.use(
+  "/newsletter",
+  newsletterRoutes
+);
 
 app.get("/", (req, res) => {
   res.send("Probability Backend Running 🚀");
