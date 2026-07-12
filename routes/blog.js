@@ -3,7 +3,8 @@ const router = express.Router();
 
 const {
     createBlog,
-    getBlogs
+    getBlogs,
+    getBlog
 } = require("../controllers/blogController");
 
 const authenticate =
@@ -19,5 +20,6 @@ router.get(
     "/blog",
     getBlogs
 );
+router.get("/blog/:slug", getBlog);
 
 module.exports = router;
