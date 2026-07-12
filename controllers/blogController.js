@@ -166,3 +166,42 @@ exports.getBlogs = async (req, res) => {
     }
 
 };
+exports.getBlog = async (req, res) => {
+  try {
+    const { slug } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        blogs.*,
+        users.username AS author
+      FROM blogs
+      LEFT JOIN users
+        ON blogs.author_id = users.id
+      WHERE slug = $1
+      LIMIT 1
+      `,
+      [slug]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json({
+        success: false,
+        error: "Blog not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      blog: result.rows[0],
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
