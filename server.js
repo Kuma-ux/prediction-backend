@@ -59,6 +59,7 @@ const allowedOrigins = [
   "http://localhost:3000",
   "https://www.theprobability.site",
   "https://theprobability.site",
+  "https://news.theprobability.site",
 ];
 app.use(
   cors({
