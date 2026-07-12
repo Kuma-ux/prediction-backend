@@ -2,7 +2,8 @@ const express = require("express");
 const router = express.Router();
 
 const {
-    createBlog
+    createBlog,
+    getBlogs
 } = require("../controllers/blogController");
 
 const authenticate =
