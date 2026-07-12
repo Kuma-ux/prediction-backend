@@ -120,3 +120,49 @@ exports.createBlog = async (req, res) => {
     }
 
 };
+
+exports.getBlogs = async (req, res) => {
+
+    try {
+
+        const result = await pool.query(`
+            SELECT
+
+                id,
+                title,
+                subtitle,
+                slug,
+                category,
+                featured_image,
+                published_at
+
+            FROM blogs
+
+            WHERE published = TRUE
+
+            ORDER BY published_at DESC
+        `);
+
+        res.json({
+
+            success: true,
+
+            blogs: result.rows
+
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+
+            success: false,
+
+            error: "Server error"
+
+        });
+
+    }
+
+};
