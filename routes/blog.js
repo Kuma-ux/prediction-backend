@@ -14,4 +14,9 @@ router.post(
     createBlog
 );
 
+router.get(
+    "/blog",
+    getBlogs
+);
+
 module.exports = router;
