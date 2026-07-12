@@ -17,6 +17,8 @@ const userRoutes = require("./routes/users");
 const creatorRoutes = require("./routes/creator");
 const supportRoutes = require("./routes/support");
 const multer = require("multer");
+const blogRoutes =
+require("./routes/blog");
 const newsletterRoutes =
 require("./routes/newsletter");
 
@@ -134,6 +136,7 @@ app.use(
   "/newsletter",
   newsletterRoutes
 );
+app.use(blogRoutes);
 
 app.get("/", (req, res) => {
   res.send("Probability Backend Running 🚀");
