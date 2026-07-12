@@ -6,7 +6,7 @@ const {
 } = require("../controllers/blogController");
 
 const authenticate =
-    require("../middleware/authenticate");
+    require("../middleware/authMiddleware");
 
 router.post(
     "/admin/blog/create",
