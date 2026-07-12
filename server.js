@@ -58,6 +58,7 @@ const upload = multer({
 const allowedOrigins = [
   "http://localhost:3000",
   "https://www.theprobability.site",
+  "https://theprobability.site",
 ];
 app.use(
   cors({
@@ -152,6 +153,7 @@ const io = new Server(server, {
     origin: [
       "http://localhost:3000",
       "https://www.theprobability.site",
+      "https://theprobability.site",
     ],
     credentials: true,
   },
