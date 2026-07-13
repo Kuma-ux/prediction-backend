@@ -431,61 +431,19 @@ router.post(
       );
 
       // ------------------------------------
-      // APPLY LOSS PENALTY
+      // SETTLE LOSING POSITIONS
       // ------------------------------------
 
       for (const loser of losersRes.rows) {
 
-        const positionCost =
-          Number(loser.shares) *
-          Number(loser.avg_cost);
-
-        const penalty =
-          positionCost * 0.05;
-
-        // get current wallet
-        const walletRes = await client.query(
-          `
-          SELECT balance
-          FROM wallets
-          WHERE user_id = $1
-          `,
-          [loser.user_id]
-        );
-
-        if (walletRes.rows.length === 0) {
-          continue;
-        }
-
-        const currentBalance =
-          Number(walletRes.rows[0].balance);
-
-        // prevent negative balances
-        const actualPenalty =
-          Math.min(currentBalance, penalty);
-
-        // only update if wallet has funds
-        if (actualPenalty > 0) {
-
-          await client.query(
-            `
-            UPDATE wallets
-            SET balance = balance - $1
-            WHERE user_id = $2
-            `,
-            [actualPenalty, loser.user_id]
-          );
-        }
-
-        // mark settled with negative payout
         await client.query(
           `
           UPDATE positions
           SET settled = true,
-              payout = $1
-          WHERE id = $2
+             payout = 0
+          WHERE id = $1
           `,
-          [-actualPenalty, loser.id]
+          [loser.id]
         );
       }
 
