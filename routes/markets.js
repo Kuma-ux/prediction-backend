@@ -435,58 +435,67 @@ router.post("/comments/:commentId/like", requireAuth, async (req, res) => {
   try {
     const { commentId } = req.params;
 
-    await pool.query(
-      `
-      INSERT INTO comment_likes
-      (comment_id, user_id)
-      VALUES ($1, $2)
-      ON CONFLICT DO NOTHING
-      `,
-      [commentId, req.user.id]
+    // Has the user already liked this comment?
+   const existing = await pool.query(
+     `
+     SELECT id
+     FROM comment_likes
+     WHERE comment_id = $1
+       AND user_id = $2
+    `,
+    [commentId, req.user.id]
+   );
+
+   let liked;
+
+   if (existing.rows.length > 0) {
+     // Unlike
+     await pool.query(
+       `
+       DELETE FROM comment_likes
+       WHERE comment_id = $1
+         AND user_id = $2
+       `,
+       [commentId, req.user.id]
+      );
+
+      liked = false;
+   } else {
+     // Like
+     await pool.query(
+       `
+       INSERT INTO comment_likes
+       (comment_id, user_id)
+       VALUES ($1, $2)
+       `,
+       [commentId, req.user.id]
+      );
+
+      liked = true;
+   }
+
+   // Get the latest like count
+   const countResult = await pool.query(
+     `
+     SELECT COUNT(*)::int AS likes
+     FROM comment_likes
+     WHERE comment_id = $1
+     `,
+     [commentId]
     );
 
     res.json({
       success: true,
+      liked,
+      likes: countResult.rows[0].likes,
     });
 
   } catch (err) {
     console.error(err);
 
-    res.json({
+    res.status(500).json({
       success: false,
-      error: "Failed to like comment",
-    });
-  }
-});
-
-router.delete("/comments/:commentId/like", requireAuth, async (req, res) => {
-  try {
-    console.log("DELETE HIT");
-    console.log("commentId:", req.params.commentId);
-    console.log("user:", req.user);
-
-    const { commentId } = req.params;
-
-    const result = await pool.query(
-      `
-      DELETE FROM comment_likes
-      WHERE comment_id = $1
-      AND user_id = $2
-      `,
-      [commentId, req.user.id]
-    );
-
-    console.log(result.rowCount);
-
-    res.json({
-      success: true,
-    });
-
-  } catch (err) {
-    console.error(err);
-
-    res.json({
-      success: false,
+      error: "Failed to update like",
     });
   }
 });
