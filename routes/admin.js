@@ -132,7 +132,7 @@ router.post(
           JSON.stringify(bundle_predictions || []),
           featured || false,
           is_live || false,
-          live_duration_minutes || 5
+          live_duration_minutes || 5,
           event_id || null
         ]
       );
