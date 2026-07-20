@@ -16,6 +16,7 @@ const profileRoutes = require("./routes/profile");
 const userRoutes = require("./routes/users");
 const creatorRoutes = require("./routes/creator");
 const supportRoutes = require("./routes/support");
+const eventRoutes = require("./routes/events");
 const multer = require("multer");
 const blogRoutes =
 require("./routes/blog");
@@ -134,6 +135,7 @@ app.use("/profile", profileRoutes);
 app.use("/users", userRoutes);
 app.use("/creator", creatorRoutes);
 app.use("/support", supportRoutes);
+app.use("/events", eventRoutes);
 app.use(
   "/newsletter",
   newsletterRoutes
