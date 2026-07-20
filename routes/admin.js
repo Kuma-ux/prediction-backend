@@ -32,6 +32,7 @@ router.post(
       featured,
       is_live,
       live_duration_minutes,
+      event_id
     } = req.body;
 
     // -----------------------------
@@ -99,7 +100,8 @@ router.post(
           bundle_predictions,
           featured,
           is_live,
-          live_duration_minutes
+          live_duration_minutes,
+          event_id 
         )
         VALUES
         (
@@ -114,7 +116,8 @@ router.post(
           $8,
           $9,
           $10,
-          $11
+          $11,
+          $12
         )
         RETURNING *
         `,
@@ -130,6 +133,7 @@ router.post(
           featured || false,
           is_live || false,
           live_duration_minutes || 5
+          event_id || null
         ]
       );
 
@@ -173,6 +177,303 @@ router.post(
         error: err.message,
       });
     }
+  }
+);
+
+// CREATE EVENT
+router.post(
+  "/create-event",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const {
+        title,
+        category,
+        description,
+        start_date,
+        end_date,
+        image,
+        featured
+      } = req.body;
+
+      if (!title || !category || !start_date) {
+        return res.status(400).json({
+          success: false,
+          error: "Title, category and start date are required."
+        });
+      }
+
+      const result = await pool.query(
+        `
+        INSERT INTO events
+        (
+          title,
+          category,
+          description,
+          start_date,
+          end_date,
+          image,
+          featured
+        )
+        VALUES
+        (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7
+        )
+        RETURNING *
+        `,
+        [
+          title,
+          category,
+          description || null,
+          start_date,
+          end_date || null,
+          image || null,
+          featured || false
+        ]
+      );
+
+      return res.json({
+        success: true,
+        event: result.rows[0]
+      });
+
+    } catch (err) {
+      console.error(err);
+
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
+    }
+  }
+);
+
+router.post(
+  "/update-event",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+
+    try {
+
+      const {
+        eventId,
+        title,
+        category,
+        description,
+        start_date,
+        end_date,
+        image,
+        featured
+      } = req.body;
+
+      await pool.query(
+        `
+        UPDATE events
+        SET
+          title = $1,
+          category = $2,
+          description = $3,
+          start_date = $4,
+          end_date = $5,
+          image = $6,
+          featured = $7
+        WHERE id = $8
+        `,
+        [
+          title,
+          category,
+          description,
+          start_date,
+          end_date,
+          image,
+          featured,
+          eventId
+        ]
+      );
+
+      res.json({
+        success: true
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        success: false,
+        error: err.message
+      });
+
+    }
+
+  }
+);
+
+router.post(
+  "/delete-event",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+
+    const { eventId } = req.body;
+
+    if (!eventId) {
+      return res.status(400).json({
+        success:false,
+        error:"Missing event id"
+      });
+    }
+
+    const client = await pool.connect();
+
+    try {
+
+      await client.query("BEGIN");
+
+      await client.query(
+        `
+        UPDATE markets
+        SET event_id = NULL
+        WHERE event_id = $1
+        `,
+        [eventId]
+      );
+
+      await client.query(
+        `
+        DELETE FROM events
+        WHERE id = $1
+        `,
+        [eventId]
+      );
+
+      await client.query("COMMIT");
+
+      res.json({
+        success:true
+      });
+
+    } catch(err){
+
+      await client.query("ROLLBACK");
+
+      console.error(err);
+
+      res.status(500).json({
+        success:false,
+        error:err.message
+      });
+
+    } finally {
+
+      client.release();
+
+    }
+
+  }
+);
+
+router.post(
+  "/feature-event",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+
+    const {
+      eventId,
+      featured
+    } = req.body;
+
+    if (
+      !eventId ||
+      typeof featured !== "boolean"
+    ) {
+      return res.status(400).json({
+        success:false,
+        error:"Invalid payload"
+      });
+    }
+
+    try {
+
+      await pool.query(
+        `
+        UPDATE events
+        SET featured = $1
+        WHERE id = $2
+        `,
+        [
+          featured,
+          eventId
+        ]
+      );
+
+      res.json({
+        success:true
+      });
+
+    } catch(err){
+
+      console.error(err);
+
+      res.status(500).json({
+        success:false,
+        error:err.message
+      });
+
+    }
+
+  }
+);
+
+router.post(
+  "/add-market-to-event",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+
+    const {
+      marketId,
+      eventId
+    } = req.body;
+
+    try {
+
+      await pool.query(
+        `
+        UPDATE markets
+        SET event_id = $1
+        WHERE id = $2
+        `,
+        [
+          eventId || null,
+          marketId
+        ]
+      );
+
+      res.json({
+        success:true
+      });
+
+    } catch(err){
+
+      console.error(err);
+
+      res.status(500).json({
+        success:false,
+        error:err.message
+      });
+
+    }
+
   }
 );
 
