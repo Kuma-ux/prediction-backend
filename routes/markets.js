@@ -83,7 +83,14 @@ router.get("/", async (req, res) => {
       ORDER BY featured DESC, id DESC
     `);
 
+    const eventsRes = await pool.query(`
+    SELECT *
+    FROM events
+    ORDER BY featured DESC, start_date ASC
+    `);
+
     const markets = [];
+    const events = [];
 
     // -----------------------------------
     // BUILD MARKET RESPONSE
@@ -158,6 +165,7 @@ router.get("/", async (req, res) => {
       markets.push({
 
         id: market.id,
+        event_id: market.event_id,
 
         title: market.title,
 
@@ -213,9 +221,40 @@ router.get("/", async (req, res) => {
       });
     }
 
+    for (const event of eventsRes.rows) {
+        events.push({
+
+          id: event.id,
+
+          title: event.title,
+
+          category: event.category,
+
+          description: event.description,
+
+          start_date: event.start_date,
+
+          end_date: event.end_date,
+
+          image: event.image,
+
+          featured: event.featured,
+
+          markets: markets.filter(
+            m => m.event_id === event.id
+          )
+        });
+    }
+
+    const standaloneMarkets =
+      markets.filter(
+        m => !m.event_id
+      );
+
     return res.json({
       success: true,
       markets,
+      standaloneMarkets
     });
 
   } catch (err) {
