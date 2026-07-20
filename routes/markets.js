@@ -93,24 +93,44 @@ router.get("/", async (req, res) => {
     const events = [];
 
     // -----------------------------------
+    // LOAD ALL OUTCOMES IN ONE QUERY
+    // -----------------------------------
+
+    const marketIds = marketsRes.rows.map(m => m.id);
+
+    const outcomesMap = {};
+
+    if (marketIds.length > 0) {
+
+      const allOutcomesRes = await pool.query(
+        `
+        SELECT market_id, outcome, pool
+        FROM market_outcomes
+        WHERE market_id = ANY($1::int[])
+        `,
+        [marketIds]
+      );
+
+      for (const row of allOutcomesRes.rows) {
+
+        if (!outcomesMap[row.market_id]) {
+          outcomesMap[row.market_id] = [];
+        }
+
+        outcomesMap[row.market_id].push({
+          outcome: row.outcome,
+          pool: Number(row.pool),
+        });
+      }
+    }
+
+    // -----------------------------------
     // BUILD MARKET RESPONSE
     // -----------------------------------
 
     for (const market of marketsRes.rows) {
 
-      const outcomesRes = await pool.query(
-        `
-        SELECT outcome, pool
-        FROM market_outcomes
-        WHERE market_id = $1
-        `,
-        [market.id]
-      );
-
-      const outcomes = outcomesRes.rows.map(o => ({
-        outcome: o.outcome,
-        pool: Number(o.pool),
-      }));
+      const outcomes = outcomesMap[market.id] || [];
 
       // -----------------------------------
       // TOTAL POOL
