@@ -254,6 +254,7 @@ router.get("/", async (req, res) => {
     return res.json({
       success: true,
       markets,
+      events,
       standaloneMarkets
     });
 
