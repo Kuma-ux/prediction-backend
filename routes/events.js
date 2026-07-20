@@ -37,25 +37,54 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:id", async (req, res) => {
-    const result = await pool.query(
-        `
-        SELECT *
-        FROM events
-        WHERE id = $1
-        `,
-        [req.params.id]
+  try {
+    const eventResult = await pool.query(
+      `
+      SELECT *
+      FROM events
+      WHERE id = $1
+      `,
+      [req.params.id]
     );
 
-    if (!result.rows.length) {
-        return res.json({
-            success: false
-        });
+    if (!eventResult.rows.length) {
+      return res.json({
+        success: false,
+      });
     }
 
+    const event = eventResult.rows[0];
+
+    const marketsResult = await pool.query(
+      `
+      SELECT *
+      FROM markets
+      WHERE event_id = $1
+      ORDER BY id ASC
+      `,
+      [req.params.id]
+    );
+
+    event.markets = marketsResult.rows;
+
+    // Optional: calculate total event volume
+    event.totalvolume = event.markets.reduce(
+      (sum, market) => sum + Number(market.totalvolume || 0),
+      0
+    );
+
     res.json({
-        success: true,
-        event: result.rows[0]
+      success: true,
+      event,
     });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to load event",
+    });
+  }
 });
 
 router.get("/:id/markets", async (req, res) => {
