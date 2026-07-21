@@ -122,6 +122,7 @@ router.get("/:id", async (req, res) => {
 
     res.json({
       success: true,
+      hello: "THIS IS THE NEW ROUTE",
       event,
     });
   } catch (err) {
