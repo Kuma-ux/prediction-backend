@@ -98,8 +98,18 @@ router.get("/:id", async (req, res) => {
 
       markets.push({
         ...market,
-        totalvolume: totalVolume,
+        options: outcomes.map(o => o.outcome),
+
+        pools: Object.fromEntries(
+          outcomes.map(o => [
+                          o.outcome,
+                          o.pool,
+          ])
+        ),
+        
         odds,
+
+        totalvolume: totalVolume,
       });
     }
 
