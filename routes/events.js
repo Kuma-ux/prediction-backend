@@ -65,11 +65,48 @@ router.get("/:id", async (req, res) => {
       [req.params.id]
     );
 
-    event.markets = marketsResult.rows;
+    const markets = [];
 
-    // Optional: calculate total event volume
-    event.totalvolume = event.markets.reduce(
-      (sum, market) => sum + Number(market.totalvolume || 0),
+    for (const market of marketsResult.rows) {
+      const outcomesRes = await pool.query(
+        `
+        SELECT outcome, pool
+        FROM market_outcomes
+        WHERE market_id = $1
+        `,
+        [market.id]
+      );
+
+      const outcomes = outcomesRes.rows.map(o => ({
+        outcome: o.outcome,
+        pool: Number(o.pool),
+      }));
+
+      const totalVolume = outcomes.reduce(
+        (sum, o) => sum + o.pool,
+        0
+      );
+
+      const odds = {};
+
+      for (const outcome of outcomes) {
+        odds[outcome.outcome] =
+          totalVolume > 0
+            ? Number((outcome.pool / totalVolume).toFixed(4))
+            : 0;
+      }
+
+      markets.push({
+        ...market,
+        totalvolume: totalVolume,
+        odds,
+      });
+    }
+
+    event.markets = markets;
+
+    event.totalvolume = markets.reduce(
+      (sum, market) => sum + market.totalvolume,
       0
     );
 
