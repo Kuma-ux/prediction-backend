@@ -242,6 +242,16 @@ router.get("/", async (req, res) => {
     }
 
     for (const event of eventsRes.rows) {
+
+        const eventMarkets = markets.filter(
+          m => m.event_id === event.id
+        );
+
+        const totalVolume = eventMarkets.reduce(
+          (sum, market) => sum + Number(market.totalvolume || 0),
+          0
+        );
+      
         events.push({
 
           id: event.id,
@@ -258,11 +268,11 @@ router.get("/", async (req, res) => {
 
           image: event.image,
 
+          markets: eventMarkets,
+
           featured: event.featured,
 
-          markets: markets.filter(
-            m => m.event_id === event.id
-          )
+          totalvolume: totalVolume,
         });
     }
 
