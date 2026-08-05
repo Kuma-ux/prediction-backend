@@ -30,6 +30,7 @@ router.post(
       market_type,
       bundle_predictions,
       featured,
+      stream_url,
       is_live,
       live_duration_minutes,
       event_id
@@ -99,6 +100,7 @@ router.post(
           market_type,
           bundle_predictions,
           featured,
+          stream_url,
           is_live,
           live_duration_minutes,
           event_id 
@@ -117,7 +119,8 @@ router.post(
           $9,
           $10,
           $11,
-          $12
+          $12,
+          $13
         )
         RETURNING *
         `,
@@ -133,7 +136,8 @@ router.post(
           featured || false,
           is_live || false,
           live_duration_minutes || 5,
-          event_id || null
+          event_id || null,
+          stream_url
         ]
       );
 
@@ -536,6 +540,7 @@ router.post("/update-market", authMiddleware, adminMiddleware, async (req, res) 
       category,
       end_date,
       featured,
+      stream_url,
       bundle_predictions,
     } = req.body;
 
@@ -550,6 +555,7 @@ router.post("/update-market", authMiddleware, adminMiddleware, async (req, res) 
         end_date = $5,
         featured = $6,
         bundle_predictions = $7
+        stream_url=$7
       WHERE id = $8
       `,
       [
@@ -561,6 +567,7 @@ router.post("/update-market", authMiddleware, adminMiddleware, async (req, res) 
         featured,
         JSON.stringify(bundle_predictions || []),
         marketId,
+        stream_url,
       ]
     );
 
