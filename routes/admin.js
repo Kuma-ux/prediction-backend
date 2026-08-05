@@ -198,6 +198,7 @@ router.post(
         start_date,
         end_date,
         image,
+        stream_url,
         featured
       } = req.body;
 
@@ -218,6 +219,7 @@ router.post(
           start_date,
           end_date,
           image,
+          stream_url,
           featured
         )
         VALUES
@@ -228,7 +230,8 @@ router.post(
           $4,
           $5,
           $6,
-          $7
+          $7,
+          $8
         )
         RETURNING *
         `,
@@ -239,6 +242,7 @@ router.post(
           start_date,
           end_date || null,
           image || null,
+          stream_url,
           featured || false
         ]
       );
