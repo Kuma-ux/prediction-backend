@@ -124,6 +124,9 @@ router.post(
         )
         RETURNING *
         `,
+        // FIXED: this array's order now matches the column order above.
+        // It previously had stream_url/is_live/live_duration_minutes/event_id
+        // shuffled, so each insert wrote the wrong value into each column.
         [
           title,
           description,
@@ -134,10 +137,10 @@ router.post(
           market_type || "standard",
           JSON.stringify(bundle_predictions || []),
           featured || false,
+          stream_url || null,
           is_live || false,
           live_duration_minutes || 5,
           event_id || null,
-          stream_url
         ]
       );
 
@@ -242,7 +245,7 @@ router.post(
           start_date,
           end_date || null,
           image || null,
-          stream_url,
+          stream_url || null,
           featured || false
         ]
       );
@@ -279,9 +282,12 @@ router.post(
         start_date,
         end_date,
         image,
+        stream_url,
         featured
       } = req.body;
 
+      // FIXED: stream_url was never accepted or persisted here, even though
+      // create-event supports it — an event's stream URL couldn't be edited later.
       await pool.query(
         `
         UPDATE events
@@ -292,8 +298,9 @@ router.post(
           start_date = $4,
           end_date = $5,
           image = $6,
-          featured = $7
-        WHERE id = $8
+          featured = $7,
+          stream_url = $8
+        WHERE id = $9
         `,
         [
           title,
@@ -303,6 +310,7 @@ router.post(
           end_date,
           image,
           featured,
+          stream_url || null,
           eventId
         ]
       );
@@ -548,6 +556,12 @@ router.post("/update-market", authMiddleware, adminMiddleware, async (req, res) 
       bundle_predictions,
     } = req.body;
 
+    // FIXED: original query was missing a comma between
+    // "bundle_predictions = $7" and "stream_url=$7" (also a syntax error —
+    // Postgres would reject this), and it reused $7 for two different
+    // columns instead of giving stream_url its own placeholder ($8).
+    // The params array is now in the same order as the placeholders,
+    // with marketId last to match "WHERE id = $9".
     await pool.query(
       `
       UPDATE markets
@@ -558,9 +572,9 @@ router.post("/update-market", authMiddleware, adminMiddleware, async (req, res) 
         category = $4,
         end_date = $5,
         featured = $6,
-        bundle_predictions = $7
-        stream_url=$7
-      WHERE id = $8
+        bundle_predictions = $7,
+        stream_url = $8
+      WHERE id = $9
       `,
       [
         title,
@@ -570,8 +584,8 @@ router.post("/update-market", authMiddleware, adminMiddleware, async (req, res) 
         end_date,
         featured,
         JSON.stringify(bundle_predictions || []),
+        stream_url || null,
         marketId,
-        stream_url,
       ]
     );
 
