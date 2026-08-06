@@ -541,69 +541,191 @@ router.post(
     }
   }
 );
-router.post("/update-market", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
+router.post(
+  "/update-market",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
 
-    const {
-      marketId,
-      title,
-      description,
-      rules,
-      category,
-      end_date,
-      featured,
-      stream_url,
-      bundle_predictions,
-    } = req.body;
+    const client = await pool.connect();
 
-    // FIXED: original query was missing a comma between
-    // "bundle_predictions = $7" and "stream_url=$7" (also a syntax error —
-    // Postgres would reject this), and it reused $7 for two different
-    // columns instead of giving stream_url its own placeholder ($8).
-    // The params array is now in the same order as the placeholders,
-    // with marketId last to match "WHERE id = $9".
-    await pool.query(
-      `
-      UPDATE markets
-      SET
-        title = $1,
-        description = $2,
-        rules = $3,
-        category = $4,
-        end_date = $5,
-        featured = $6,
-        bundle_predictions = $7,
-        stream_url = $8
-      WHERE id = $9
-      `,
-      [
+    try {
+
+      const {
+        marketId,
         title,
         description,
         rules,
         category,
         end_date,
         featured,
-        JSON.stringify(bundle_predictions || []),
-        stream_url || null,
-        marketId,
-      ]
-    );
+        stream_url,
+        bundle_predictions,
+        b,
+        market_type,
+        is_live,
+        live_duration_minutes,
+        event_id,
+        options = []
+      } = req.body;
 
-    return res.json({
-      success: true,
-    });
+      await client.query("BEGIN");
 
-  } catch (err) {
+      // -----------------------------
+      // Update market
+      // -----------------------------
 
-    console.error(err);
+      await client.query(
+        `
+        UPDATE markets
+        SET
+          title = $1,
+          description = $2,
+          rules = $3,
+          category = $4,
+          end_date = $5,
+          featured = $6,
+          bundle_predictions = $7,
+          stream_url = $8,
+          b = $9,
+          market_type = $10,
+          is_live = $11,
+          live_duration_minutes = $12,
+          event_id = $13
+        WHERE id = $14
+        `,
+        [
+          title,
+          description,
+          rules,
+          category,
+          end_date,
+          featured,
+          JSON.stringify(bundle_predictions || []),
+          stream_url || null,
+          Number(b || 50),
+          market_type,
+          !!is_live,
+          live_duration_minutes || 5,
+          event_id || null,
+          marketId
+        ]
+      );
 
-    return res.status(500).json({
-      success: false,
-      error: "Failed to update market",
-    });
+      // -----------------------------
+      // Update outcomes
+      // -----------------------------
+
+      if (
+        market_type !== "bundle" &&
+        Array.isArray(options)
+      ) {
+
+        const existing = await client.query(
+          `
+          SELECT id, outcome
+          FROM market_outcomes
+          WHERE market_id = $1
+          `,
+          [marketId]
+        );
+
+        const existingMap = new Map();
+
+        existing.rows.forEach(row => {
+          existingMap.set(row.outcome, row);
+        });
+
+        // Delete removed outcomes
+        for (const row of existing.rows) {
+
+          if (!options.includes(row.outcome)) {
+
+            const tradeCheck = await client.query(
+              `
+              SELECT 1
+              FROM positions
+              WHERE
+                market_id = $1
+                AND outcome = $2
+              LIMIT 1
+              `,
+              [marketId, row.outcome]
+            );
+
+            if (tradeCheck.rows.length === 0) {
+
+              await client.query(
+                `
+                DELETE FROM market_outcomes
+                WHERE id = $1
+                `,
+                [row.id]
+              );
+
+            }
+
+          }
+
+        }
+
+        // Add new outcomes
+        for (const option of options) {
+
+          if (!existingMap.has(option)) {
+
+            await client.query(
+              `
+              INSERT INTO market_outcomes
+              (
+                market_id,
+                outcome,
+                pool
+              )
+              VALUES
+              (
+                $1,
+                $2,
+                0
+              )
+              `,
+              [
+                marketId,
+                option
+              ]
+            );
+
+          }
+
+        }
+
+      }
+
+      await client.query("COMMIT");
+
+      return res.json({
+        success: true
+      });
+
+    } catch (err) {
+
+      await client.query("ROLLBACK");
+
+      console.error(err);
+
+      return res.status(500).json({
+        success: false,
+        error: err.message
+      });
+
+    } finally {
+
+      client.release();
+
+    }
+
   }
-});
-
+);
 // Resolve market
 router.post(
   "/resolve",
