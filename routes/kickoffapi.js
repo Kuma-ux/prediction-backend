@@ -1,7 +1,7 @@
 // prediction-backend/routes/kickoffapi.js  (new file)
 const express = require("express");
 const router = express.Router();
-const { kickoff, normalizeFixture, settleFromScore } = require("../services/kickoffapi");
+const { kickoff, normalizeFixture, settleFromScore, fetchSettlement } = require("../services/kickoffapi");
 
 // Only these paths can be called through the test route
 const ALLOWED = [
@@ -65,6 +65,17 @@ router.get("/results", async (req, res) => {
   try {
     const data = await kickoff("/fixtures", pickParams(req.query), 120);
     res.json(data.data.filter((f) => f.status.short !== "NS").map(settleFromScore));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get("/settlement/:id", async (req, res) => {
+  if (!process.env.DEBUG_SECRET || req.query.secret !== process.env.DEBUG_SECRET) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  if (!/^[\w-]+$/.test(req.params.id)) return res.status(400).json({ error: "bad id" });
+  try {
+    res.json(await fetchSettlement(req.params.id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
