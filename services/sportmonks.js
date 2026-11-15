@@ -22,5 +22,19 @@ async function sportmonks(path, params = {}, ttlSeconds = 300) {
   cache.set(url, { data, expires: Date.now() + ttlSeconds * 1000 });
   return data;
 }
+function normalizeFixture(f) {
+  const home = f.participants.find((p) => p.meta?.location === "home");
+  const away = f.participants.find((p) => p.meta?.location === "away");
 
-module.exports = { sportmonks };
+  return {
+    externalId: f.id,                       // store this to find the fixture again
+    leagueId: f.league_id,
+    leagueName: f.league?.name,
+    title: `${home.name} vs ${away.name}`,
+    startsAt: new Date(f.starting_at.replace(" ", "T") + "Z").toISOString(),
+    status: f.state?.developer_name,        // "NS" = not started, "FT" = full time
+    home: { id: home.id, name: home.name, logo: home.image_path },
+    away: { id: away.id, name: away.name, logo: away.image_path },
+  };
+}
+module.exports = { sportmonks, normalizeFixture };
