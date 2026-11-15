@@ -76,4 +76,169 @@ function settleFromScore(f) {
     },
   };
 }
-module.exports = { kickoff, normalizeFixture, settleFromScore };
+const OWN_GOAL_RULE = "SKIP_OWN_GOALS";
+
+const norm = (s) => String(s || "").toLowerCase().normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+const num = (v) => {
+  const n = parseFloat(String(v ?? "").replace("%", ""));
+  return Number.isNaN(n) ? null : n;
+};
+
+// Events/stats/lineups use numeric team ids; map them to home/away by team name
+function teamSideMap(f, stats, lineups) {
+  const names = {};
+  for (const s of stats) if (s.teamId != null && s.team?.name) names[s.teamId] = s.team.name;
+  for (const l of lineups) if (l.teamId != null && l.team?.name) names[l.teamId] = l.team.name;
+  const map = {};
+  for (const [id, name] of Object.entries(names)) {
+    if (norm(name) === norm(f.home.name)) map[id] = "home";
+    else if (norm(name) === norm(f.away.name)) map[id] = "away";
+  }
+  return map;
+}
+
+function parseGoals(events) {
+  return events
+    .filter((e) => norm(e.type) === "goal" && !/missed|cancel|disallow/i.test(e.detail || ""))
+    .sort((a, b) => (a.time - b.time) || (a.id - b.id))
+    .map((e) => ({
+      minute: e.time,
+      teamId: e.teamId,
+      playerId: e.playerId,
+      player: e.playerName,
+      assist: e.assistName,
+      isOwn: /own/i.test(e.detail || ""),
+      isPenalty: /pen/i.test(e.detail || ""),
+    }));
+}
+
+// Decide which side each goal counts for, and verify against the final score
+function assignSides(goals, map, final) {
+  for (const interp of ["beneficiary", "scorerTeam"]) {
+    const sides = goals.map((g) => {
+      const s = map[g.teamId];
+      if (!s) return null;
+      return g.isOwn && interp === "scorerTeam" ? (s === "home" ? "away" : "home") : s;
+    });
+    if (sides.includes(null)) return { ok: false, reason: "TEAM_NOT_MATCHED_BY_NAME" };
+    const h = sides.filter((x) => x === "home").length;
+    if (h === final.home && sides.length - h === final.away) return { ok: true, sides, interp };
+  }
+  return { ok: false, reason: "GOALS_DONT_MATCH_SCORE" };
+}
+
+const STAT_KEYS = {
+  corners: "cornerkicks", yellowCards: "yellowcards", redCards: "redcards",
+  possession: "ballpossession", shots: "totalshots", shotsOnTarget: "shotsongoal", xg: "expectedgoals",
+};
+function teamStats(stats, teamId) {
+  const out = {};
+  for (const [k, typeName] of Object.entries(STAT_KEYS)) {
+    const row = teamId == null ? null
+      : stats.find((s) => String(s.teamId) === String(teamId) && norm(s.type) === typeName);
+    out[k] = row ? num(row.value) : null;
+  }
+  return out;
+}
+
+function settleFromDetails(f, ev, st, lu) {
+  const base = settleFromScore(f);
+  if (!base.settleable) return base;
+
+  const events = ev?.data || [], stats = st?.data || [], lineups = lu?.data || [];
+  const reasons = [];
+  if (ev?.error) reasons.push("EVENTS_UNAVAILABLE");
+  if (st?.error) reasons.push("STATISTICS_UNAVAILABLE");
+  if (lu?.error) reasons.push("LINEUPS_UNAVAILABLE");
+
+  const map = teamSideMap(f, stats, lineups);
+  const goals = parseGoals(events);
+  const assigned = assignSides(goals, map, base.score.final);
+  if (!assigned.ok) reasons.push(assigned.reason);
+
+  const timeline = assigned.ok ? goals.map((g, i) => ({ ...g, side: assigned.sides[i] })) : null;
+  const first = timeline?.[0] || null;
+  const last = timeline?.length ? timeline[timeline.length - 1] : null;
+  const nonOwn = (timeline || []).filter((g) => !g.isOwn);
+  const pick = (g) => g && ({ player: g.player, playerId: g.playerId, minute: g.minute,
+    side: g.side, penalty: g.isPenalty, ownGoal: g.isOwn });
+
+  let firstScorer = null;
+  if (first) firstScorer = !first.isOwn ? pick(first)
+    : OWN_GOAL_RULE === "SKIP_OWN_GOALS" ? pick(nonOwn[0]) : null;
+
+  const byPlayer = {};
+  for (const g of nonOwn) {
+    const k = g.playerId ?? g.player;
+    byPlayer[k] = { player: g.player, playerId: g.playerId, goals: (byPlayer[k]?.goals || 0) + 1 };
+  }
+  const scorers = Object.values(byPlayer);
+
+  // Who actually played: starters plus players who came on (assistId on subst events)
+  const played = new Set();
+  for (const l of lineups) for (const p of l.startXI || []) if (p.player?.id != null) played.add(p.player.id);
+  for (const e of events) if (norm(e.type) === "subst" && e.assistId != null) played.add(e.assistId);
+
+  const homeId = Object.keys(map).find((k) => map[k] === "home");
+  const awayId = Object.keys(map).find((k) => map[k] === "away");
+  const hs = teamStats(stats, homeId), as = teamStats(stats, awayId);
+  const sum = (a, b) => (a == null || b == null ? null : a + b);
+
+  const ht = base.score.halftime;
+  const fh = ht ? ht.home + ht.away : null;
+  const sh = ht ? base.markets.totalGoals - fh : null;
+
+  return {
+    ...base,
+    dataQuality: {
+      hasEvents: events.length > 0,
+      hasStats: stats.length > 0 && !!homeId && !!awayId,
+      hasLineups: lineups.length > 0,
+      goalsMatchScore: assigned.ok,
+      ownGoalCreditedTo: assigned.interp ?? null,
+      reasons,
+      needsReviewForGoalMarkets: !assigned.ok,
+    },
+    goals: timeline,
+    playersWhoPlayed: [...played],
+    markets: {
+      ...base.markets,
+      halfTimeFullTime: ht ? `${base.markets.halfTimeResult}/${base.markets.matchWinner}` : null,
+      firstHalfGoals: fh,
+      secondHalfGoals: sh,
+      highestScoringHalf: ht ? (fh > sh ? "FIRST" : fh < sh ? "SECOND" : "EQUAL") : null,
+      ...(assigned.ok ? {
+        firstTeamToScore: first ? first.side.toUpperCase() : "NONE",
+        firstGoal: pick(first),
+        firstGoalWasOwnGoal: first ? first.isOwn : false,
+        firstScorer,
+        lastTeamToScore: last ? last.side.toUpperCase() : "NONE",
+        lastGoal: pick(last),
+        anytimeScorers: scorers,
+        braceScorers: scorers.filter((s) => s.goals >= 2),
+        hatTrickScorers: scorers.filter((s) => s.goals >= 3),
+        penaltiesScored: timeline.filter((g) => g.isPenalty && !g.isOwn).length,
+        ownGoals: timeline.filter((g) => g.isOwn).length,
+        missedPenalties: events.filter((e) => norm(e.type) === "goal" && /missed/i.test(e.detail || "")).length,
+      } : {}),
+      teamStats: { home: hs, away: as },
+      cornersTotal: sum(hs.corners, as.corners),
+      yellowCardsTotal: sum(hs.yellowCards, as.yellowCards),
+      redCardsTotal: sum(hs.redCards, as.redCards),
+    },
+  };
+}
+
+// 3 requests per match (4 if you don't pass the fixture you already have)
+async function fetchSettlement(id, listFixture) {
+  const soft = (p) => p.catch((e) => ({ data: [], error: e.message }));
+  const f = listFixture || (await kickoff(`/fixtures/${id}`, {}, 300)).data;
+  const [ev, st, lu] = await Promise.all([
+    soft(kickoff(`/fixtures/${id}/events`, {}, 300)),
+    soft(kickoff(`/fixtures/${id}/statistics`, {}, 300)),
+    soft(kickoff(`/fixtures/${id}/lineups`, {}, 300)),
+  ]);
+  return settleFromDetails(f, ev, st, lu);
+}
+module.exports = { kickoff, normalizeFixture, settleFromScore, settleFromDetails, fetchSettlement };
