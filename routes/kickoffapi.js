@@ -25,6 +25,24 @@ router.get("/debug", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+router.get("/debug/full", async (req, res) => {
+  const { id, secret } = req.query;
+  if (!process.env.DEBUG_SECRET || secret !== process.env.DEBUG_SECRET) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  if (!/^[\w-]+$/.test(id || "")) return res.status(400).json({ error: "bad id" });
+
+  const out = {};
+  for (const part of ["", "/events", "/statistics", "/lineups"]) {
+    const name = part ? part.slice(1) : "fixture";
+    try {
+      out[name] = await kickoff(`/fixtures/${id}${part}`, {}, 60);
+    } catch (e) {
+      out[name] = { error: e.message };
+    }
+  }
+  res.json(out);
+});
 // Only these query params can be passed through on the public routes
 const PUBLIC_PARAMS = ["league", "season", "team", "date", "limit", "cursor"];
 function pickParams(q) {
