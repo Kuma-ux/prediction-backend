@@ -141,6 +141,7 @@ app.use(
   newsletterRoutes
 );
 app.use(blogRoutes);
+app.use("/api/sportmonks", require("./routes/sportmonks"));
 
 app.get("/", (req, res) => {
   res.send("Probability Backend Running 🚀");
