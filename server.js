@@ -26,7 +26,6 @@ require("./routes/newsletter");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
-require("./services/autoMarkets").start();
 
 const app = express();
 app.set("trust proxy", 1);
@@ -202,3 +201,4 @@ server.listen(PORT, () => {
     `Server running on port ${PORT}`
   );
 });
+require("./services/autoMarkets").start();
