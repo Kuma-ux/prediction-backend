@@ -143,13 +143,27 @@ async function importUpcoming() {
 
   for (const leagueId of Object.keys(LEAGUES)) {
     const name = LEAGUES[leagueId].name;
-    let rows = [];
+    let rows = [], nextCursor = null;
     try {
       const data = await api("/fixtures", { league: leagueId, limit: "100" }, 600);
       rows = data.data || [];
+      nextCursor = data.meta?.nextCursor ?? null;
     } catch (e) {
       console.error("[auto] fixtures fetch failed for", leagueId, e.message);
-      report.leagues.push({ league: name, error: e.message });
+          const dates = rows.map((f) => f.date).sort();
+    const statusCounts = {};
+    rows.forEach((f) => { statusCounts[f.status.short] = (statusCounts[f.status.short] || 0) + 1; });
+    report.leagues.push({
+      league: name,
+      returned: rows.length,
+      nextCursor,
+      earliest: dates[0] || null,
+      latest: dates[dates.length - 1] || null,
+      statusCounts,
+      filterIgnored,
+      upcoming: upcoming.length,
+      firstUpcoming: upcoming[0] ? `${upcoming[0].title} @ ${upcoming[0].startsAt}` : null,
+    });
       continue;
     }
     const filterIgnored = rows.some((f) => f.league.id !== leagueId);
