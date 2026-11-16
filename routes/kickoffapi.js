@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const { kickoff, normalizeFixture, settleFromScore, fetchSettlement } = require("../services/kickoffapi");
+const { LEAGUES, buildEventPayload, buildMarketPayloads } = require("../services/marketTemplates");
 
 // Only these paths can be called through the test route
 const ALLOWED = [
@@ -76,6 +77,33 @@ router.get("/settlement/:id", async (req, res) => {
   if (!/^[\w-]+$/.test(req.params.id)) return res.status(400).json({ error: "bad id" });
   try {
     res.json(await fetchSettlement(req.params.id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get("/preview", async (req, res) => {
+  if (!process.env.DEBUG_SECRET || req.query.secret !== process.env.DEBUG_SECRET) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  try {
+    const out = [];
+    for (const leagueId of Object.keys(LEAGUES)) {
+      const data = await kickoff("/fixtures", { league: leagueId, limit: "50" }, 300);
+      const rows = data.data || [];
+      const filterIgnored = rows.some((f) => f.league.id !== leagueId);
+      for (const raw of rows.filter((f) => f.league.id === leagueId && f.status.short === "NS")) {
+        const f = normalizeFixture(raw);
+        out.push({
+          warning: filterIgnored ? "API ignored the league filter; results were filtered by us" : null,
+          event: buildEventPayload(f),
+          markets: buildMarketPayloads(f).map((m) => ({
+            key: m.templateKey, title: m.payload.title, options: m.payload.options,
+            closes: m.payload.end_date,
+          })),
+        });
+      }
+    }
+    res.json(out);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
