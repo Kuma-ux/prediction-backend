@@ -132,23 +132,27 @@ async function ensureFixture(f) {
   }
 }
 
+let lastImport = null;
+
 async function importUpcoming() {
   const now = Date.now();
   const horizon = now + HORIZON_DAYS * 864e5;
   let touched = 0;
+  const report = { at: new Date().toISOString(), mode: MODE, leagues: [] };
+  lastImport = report;
 
   for (const leagueId of Object.keys(LEAGUES)) {
+    const name = LEAGUES[leagueId].name;
     let rows = [];
     try {
       const data = await api("/fixtures", { league: leagueId, limit: "100" }, 600);
       rows = data.data || [];
-      if (rows.some((f) => f.league.id !== leagueId)) {
-        console.warn("[auto] WARNING: API ignored the league filter for", leagueId);
-      }
     } catch (e) {
       console.error("[auto] fixtures fetch failed for", leagueId, e.message);
+      report.leagues.push({ league: name, error: e.message });
       continue;
     }
+    const filterIgnored = rows.some((f) => f.league.id !== leagueId);
     const upcoming = rows
       .filter((f) => f.league.id === leagueId && f.status.short === "NS")
       .map(normalizeFixture)
@@ -156,12 +160,28 @@ async function importUpcoming() {
         const t = new Date(f.startsAt).getTime();
         return t > now + MIN_LEAD_MINUTES * 60000 && t < horizon;
       });
+    report.leagues.push({
+      league: name,
+      returned: rows.length,
+      filterIgnored,
+      upcoming: upcoming.length,
+      firstUpcoming: upcoming[0] ? `${upcoming[0].title} @ ${upcoming[0].startsAt}` : null,
+      leaguesSeenInResults: [...new Set(rows.map((f) => f.league.name))].slice(0, 8),
+    });
+    log(`${name}: ${rows.length} returned, ${upcoming.length} upcoming, filterIgnored=${filterIgnored}`);
     for (const f of upcoming) {
       if (touched >= MAX_NEW_FIXTURES_PER_RUN) return;
       touched += await ensureFixture(f);
     }
   }
 }
+
+async function runImportNow() {
+  if (MODE === "off") throw new Error("AUTO_MARKETS_MODE is off");
+  await ensureTables();
+  await importUpcoming();
+}
+const getLastImport = () => lastImport;
 
 // ================= SUGGEST OUTCOMES FOR FINISHED MATCHES =================
 function snapshot(s) {
@@ -291,4 +311,4 @@ function start() {
 }
 
 const getStatus = () => ({ mode: MODE, requestsSpentToday: spent, dailyBudget: DAILY_REQUEST_BUDGET });
-module.exports = { start, getStatus, ensureTables };
+module.exports = { start, getStatus, ensureTables, runImportNow, getLastImport };
