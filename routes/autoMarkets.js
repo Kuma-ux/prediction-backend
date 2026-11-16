@@ -4,10 +4,11 @@ const router = express.Router();
 const pool = require("../db");
 const authMiddleware = require("../middleware/authMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
-const { getStatus } = require("../services/autoMarkets");
+const { getStatus, ensureTables } = require("../services/autoMarkets");
 
 router.get("/suggestions", authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    await ensureTables();
     const r = await pool.query(`
       SELECT fm.market_id, m.title AS market_title, fe.title AS fixture, fe.kickoff,
              fm.suggestion_action AS action, fm.suggested_outcomes AS outcomes,
@@ -25,6 +26,7 @@ router.get("/suggestions", authMiddleware, adminMiddleware, async (req, res) => 
 
 router.get("/status", authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    await ensureTables();
     const r = await pool.query(`SELECT status, COUNT(*)::int AS n FROM fixture_markets GROUP BY status`);
     res.json({ success: true, ...getStatus(), marketsByStatus: r.rows });
   } catch (err) {
