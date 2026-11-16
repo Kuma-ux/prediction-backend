@@ -146,4 +146,4 @@ function decideResolution(templateKey, optionMap, s, now = Date.now()) {
   return { action: "RESOLVE", outcomes: [optionMap[key]], key };
 }
 
-module.exports = { LEAGUES, TEMPLATES, buildEventPayload, buildMarketPayloads, decideResolution };
+module.exports = { LEAGUES, TEMPLATES, MIN_MINUTES_AFTER_KICKOFF, buildEventPayload, buildMarketPayloads, decideResolution };
