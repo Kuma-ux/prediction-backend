@@ -4,7 +4,7 @@ const router = express.Router();
 const pool = require("../db");
 const authMiddleware = require("../middleware/authMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
-const { getStatus, ensureTables } = require("../services/autoMarkets");
+const { getStatus, ensureTables, runImportNow, getLastImport } = require("../services/autoMarkets");
 
 router.get("/suggestions", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -33,5 +33,12 @@ router.get("/status", authMiddleware, adminMiddleware, async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
+router.get("/run-import", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    await runImportNow();
+    res.json({ success: true, ...getStatus(), lastImport: getLastImport() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 module.exports = router;
