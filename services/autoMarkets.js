@@ -291,4 +291,4 @@ function start() {
 }
 
 const getStatus = () => ({ mode: MODE, requestsSpentToday: spent, dailyBudget: DAILY_REQUEST_BUDGET });
-module.exports = { start, getStatus };
+module.exports = { start, getStatus, ensureTables };
