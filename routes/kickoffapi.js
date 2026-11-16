@@ -108,4 +108,39 @@ router.get("/preview", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+router.get("/active", async (req, res) => {
+  if (!process.env.DEBUG_SECRET || req.query.secret !== process.env.DEBUG_SECRET) {
+    return res.status(403).json({ error: "forbidden" });
+  }
+  try {
+    const date = req.query.date || new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    const leagues = {};
+    let cursor = 0, pages = 0, seenMin = null, seenMax = null;
+    while (pages < 3) {
+      const params = { date, limit: "100" };
+      if (cursor) params.cursor = String(cursor);
+      const data = await kickoff("/fixtures", params, 600);
+      const rows = data.data || [];
+      for (const f of rows) {
+        const k = f.league.id;
+        leagues[k] = leagues[k] || { id: k, name: f.league.name, matches: 0, example: `${f.home.name} vs ${f.away.name}` };
+        leagues[k].matches++;
+        if (!seenMin || f.date < seenMin) seenMin = f.date;
+        if (!seenMax || f.date > seenMax) seenMax = f.date;
+      }
+      pages++;
+      const next = data.meta?.nextCursor;
+      if (!next || rows.length < 100) break;
+      cursor = next;
+    }
+    res.json({
+      asked: date,
+      dateRangeReturned: [seenMin, seenMax],
+      requestsUsed: pages,
+      leagues: Object.values(leagues).sort((a, b) => b.matches - a.matches),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = router;
