@@ -26,6 +26,7 @@ require("./routes/newsletter");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
+require("./services/autoMarkets").start();
 
 const app = express();
 app.set("trust proxy", 1);
@@ -143,6 +144,7 @@ app.use(
 app.use(blogRoutes);
 app.use("/api/sportmonks", require("./routes/sportmonks"));
 app.use("/api/kickoff", require("./routes/kickoffapi"));
+app.use("/admin/auto", require("./routes/autoMarkets"));
 
 app.get("/", (req, res) => {
   res.send("Probability Backend Running 🚀");
